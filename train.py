@@ -1,34 +1,44 @@
-results = model.train(
-    data="/content/data/css-data/dataset.yaml",  # Path to the updated dataset.yaml
-    epochs=10,                                  # Number of epochs
-    imgsz=640,                                  # Image size
-    batch=16,                                   # Batch size
-    device="0",                                 # Use GPU
-    name="yolov8_construction_safety",         # Name of the training run
-    workers=4,                                  # Number of data loading workers
-    lr0=0.01,                                   # Initial learning rate
-    optimizer="auto",                           # Optimizer (auto, SGD, Adam, etc.)
-    seed=42                                     # Random seed for reproducibility
-)
+import argparse
+from ultralytics import YOLO
 
+def train(data, epochs, batch, device, imgsz):
+    model = YOLO("yolov8n.pt")
+    model.train(
+        data=data,
+        epochs=epochs,
+        imgsz=imgsz,
+        batch=batch,
+        device=device,
+        name="yolov8_construction_safety",
+        workers=4,
+        lr0=0.01,
+        optimizer="auto",
+        seed=42
+    )
 
-metrics = model.val()  
-print(f"mAP50-95: {metrics.box.map}")  
+    metrics = model.val()
+    print(f"mAP50-95: {metrics.box.map}")
 
+    results = model.predict(
+        source="data/css-data/test/images",
+        save=True,
+        conf=0.5,
+        iou=0.45,
+        show_labels=True,
+        show_conf=True
+    )
+    results[0].show()
 
-test_results = model.predict(
-    source="/content/data/css-data/test/images", 
-    save=True,                                
-    conf=0.5,                                    
-    iou=0.45,                                 
-    show_labels=True,                            
-    show_conf=True                               
-)
+    model.save("yolov8_construction_safety.pt")
+    model.export(format="onnx")
 
-model.save("/content/drive/MyDrive/ConstructionModel/yolov8_construction_safety.pt")
-model.export(format="onnx")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=str, default="dataset.yaml")
+    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--batch", type=int, default=16)
+    parser.add_argument("--device", type=str, default="0")
+    parser.add_argument("--imgsz", type=int, default=640)
+    args = parser.parse_args()
 
-
-test_results[0].show()  
-from ultralytics.utils.plots import plot_results
-plot_results("/content/runs/detect/yolov8_construction_safety/results.csv")  
+    train(args.data, args.epochs, args.batch, args.device, args.imgsz)
